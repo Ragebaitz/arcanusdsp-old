@@ -1,0 +1,45 @@
+name: .NET CI
+
+on:
+  push:
+    paths:
+      - '**.csproj'
+      - '**.sln'
+      - '**.slnx'
+      - 'global.json'
+      - '.github/workflows/dotnet.yml'
+  pull_request:
+    paths:
+      - '**.csproj'
+      - '**.sln'
+      - '**.slnx'
+      - 'global.json'
+      - '.github/workflows/dotnet.yml'
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore, build, and test
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -f "$(find . -type f -name '*.sln' -not -path '*/obj/*' -print -quit)" ]; then
+            solution="$(find . -type f -name '*.sln' -not -path '*/obj/*' -print -quit)"
+            dotnet test "$solution" --configuration Release
+          elif [ -f "$(find . -type f -name '*.csproj' -not -path '*/obj/*' -print -quit)" ]; then
+            while IFS= read -r project; do
+              dotnet test "$project" --configuration Release
+            done < <(find . -type f -name '*.csproj' -not -path '*/obj/*' -print)
+          else
+            echo "No .NET solution or project file found. Add a .sln or .csproj to enable this workflow."
+            exit 1
+          fi
